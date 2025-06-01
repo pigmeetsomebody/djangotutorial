@@ -1,0 +1,48 @@
+# Django 核心
+Django==4.2.10
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# JWT 认证
+djangorestframework-simplejwt==5.3.1
+
+# API 文档
+drf-yasg==1.21.7
+
+# 环境变量管理
+python-dotenv==1.0.1
+
+# 数据库
+psycopg2-binary==2.9.9  # PostgreSQL 数据库驱动（如果需要使用 PostgreSQL）
+
+# 生产环境服务器
+gunicorn==21.2.0
+whitenoise==6.6.0  # 静态文件服务
+
+# 开发工具
+black==24.1.1  # 代码格式化
+isort==5.13.2  # import 排序
+flake8==7.0.0  # 代码检查
+pytest==8.0.0  # 测试框架
+pytest-django==4.8.0  # Django 测试支持
+coverage==7.4.1  # 测试覆盖率
+
+# 安全相关
+django-environ==0.11.2  # 环境变量管理
+django-ratelimit==4.1.0  # 请求频率限制
+
+# 工具包
+Pillow==10.2.0  # 图片处理
+python-dateutil==2.8.2  # 日期处理
+requests==2.31.0  # HTTP 请求
+urllib3==2.1.0  # URL 处理
+
+# 日志和监控
+sentry-sdk==1.39.1  # 错误监控（可选）
+
+# 缓存
+redis==5.0.1  # Redis 客户端（如果需要使用 Redis 缓存）
+
+# 其他
+django-filter==23.5  # 过滤功能
+django-storages==1.14.2  # 存储后端（如果需要使用云存储） 
