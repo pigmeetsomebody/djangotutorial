@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'users',  # 重新添加
-    'group',
     'corsheaders',  # 添加CORS支持
     'drf_yasg',  # 添加Swagger文档
 ]
