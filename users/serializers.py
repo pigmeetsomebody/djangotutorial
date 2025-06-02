@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
+
 class SendSmsCodeSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, required=True)
     is_test = serializers.BooleanField(default=False, required=False)  # 添加测试模式标志
@@ -41,6 +42,7 @@ class SendSmsCodeSerializer(serializers.Serializer):
             pass
             
         return {'phone': phone, 'code': code}
+
 
 class LoginSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, required=True)
@@ -113,4 +115,4 @@ class LoginSerializer(serializers.Serializer):
         except Exception as e:
             logger.error(f"创建用户或生成token时发生错误: {str(e)}")
             logger.error(f"错误详情: {traceback.format_exc()}")
-            raise 
+            raise
