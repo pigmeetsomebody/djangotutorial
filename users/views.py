@@ -2,8 +2,9 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from .serializers import SendSmsCodeSerializer, LoginSerializer
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from .serializers import SendSmsCodeSerializer, LoginSerializer, UserProfileSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import traceback
@@ -110,6 +111,14 @@ class LoginView(APIView):
                                 'id': openapi.Schema(type=openapi.TYPE_INTEGER),
                             },
                         ),
+                        'token_info': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'access_token': openapi.Schema(type=openapi.TYPE_STRING, description='访问令牌'),
+                                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, description='刷新令牌'),
+                                'expires_in': openapi.Schema(type=openapi.TYPE_INTEGER, description='过期时间戳'),
+                            },
+                        ),
                     },
                 ),
             ),
@@ -122,11 +131,21 @@ class LoginView(APIView):
             if serializer.is_valid():
                 try:
                     result = serializer.save()
+                    # 获取token的过期时间
+                    from rest_framework_simplejwt.tokens import AccessToken
+                    access_token = AccessToken(result['access_token'])
+                    expires_in = access_token.current_time + access_token.lifetime
+                    
                     response = Response({
                         'message': '登录成功',
                         'user': {
                             'phone': result['user'].phone,
                             'id': result['user'].id
+                        },
+                        'token_info': {
+                            'access_token': result['access_token'],
+                            'refresh_token': result['refresh_token'],
+                            'expires_in': int(expires_in.timestamp())
                         }
                     })
                     
@@ -227,3 +246,59 @@ class RefreshTokenView(APIView):
                 'message': '服务器内部错误',
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ProfileView(APIView):
+    """用户资料视图"""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="获取用户资料",
+        responses={
+            200: UserProfileSerializer,
+            401: "未认证或token已过期",
+        },
+    )
+    def get(self, request):
+        """获取用户资料"""
+        try:
+            serializer = UserProfileSerializer(request.user)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"获取用户资料时发生错误: {str(e)}")
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            return Response({
+                'message': '获取用户资料失败',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @swagger_auto_schema(
+        operation_description="使用POST方法更新用户资料",
+        request_body=UserProfileSerializer,
+        responses={
+            200: UserProfileSerializer,
+            400: "请求参数错误",
+            401: "未认证或token已过期",
+        },
+    )
+    def post(self, request):
+        """使用POST方法更新用户资料"""
+        try:
+            serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    'message': '更新成功',
+                    'data': serializer.data
+                })
+            return Response({
+                'message': '更新失败',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"更新用户资料时发生错误: {str(e)}")
+            logger.error(f"错误详情: {traceback.format_exc()}")
+            return Response({
+                'message': '更新用户资料失败',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

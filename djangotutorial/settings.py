@@ -160,6 +160,16 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    
+    # Cookie 设置
+    'AUTH_COOKIE': 'access_token',  # Cookie 名称
+    'AUTH_COOKIE_REFRESH': 'refresh_token',  # Refresh Cookie 名称
+    'AUTH_COOKIE_DOMAIN': None,  # Cookie 域名
+    'AUTH_COOKIE_SECURE': False,  # 是否只在 HTTPS 连接中发送
+    'AUTH_COOKIE_HTTP_ONLY': True,  # 是否禁止 JavaScript 访问
+    'AUTH_COOKIE_PATH': '/',  # Cookie 路径
+    'AUTH_COOKIE_SAMESITE': 'Lax',  # SameSite 策略
 }
 
 # 短信验证码设置

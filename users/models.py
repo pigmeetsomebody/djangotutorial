@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
 from django.conf import settings
+from datetime import datetime, timedelta
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class UserManager(BaseUserManager):
@@ -21,12 +23,18 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(max_length=20, unique=True, verbose_name='手机号')
+    nickname = models.CharField(max_length=50, blank=True, null=True, verbose_name='昵称')
+    avatar = models.URLField(max_length=255, blank=True, null=True, verbose_name='头像URL')
+    bio = models.CharField(max_length=100, blank=True, null=True, verbose_name='个人简介')
+    birthday = models.DateField(blank=True, null=True, verbose_name='生日')
     openid = models.CharField(max_length=64, blank=True, null=True, unique=True, verbose_name='微信OpenID')
     apple_id = models.CharField(max_length=64, blank=True, null=True, unique=True, verbose_name='苹果ID')
     google_id = models.CharField(max_length=64, blank=True, null=True, unique=True, verbose_name='谷歌ID')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
+    updated_at = models.DateTimeField(default=timezone.now, verbose_name='更新时间')
 
     USERNAME_FIELD = 'phone'
     REQUIRED_FIELDS = []
@@ -37,13 +45,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.phone
 
     def get_tokens_for_user(self):
-        """生成用户的 JWT token"""
-        from rest_framework_simplejwt.tokens import RefreshToken
+        """获取用户的 JWT token"""
         refresh = RefreshToken.for_user(self)
         return {
-            'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'refresh': str(refresh)
         }
+
+    def save(self, *args, **kwargs):
+        """重写 save 方法，自动更新 updated_at"""
+        if not self.created_at:
+            self.created_at = timezone.now()
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = '用户'
@@ -53,16 +67,24 @@ class User(AbstractBaseUser, PermissionsMixin):
 class SmsCode(models.Model):
     phone = models.CharField(max_length=20, verbose_name='手机号')
     code = models.CharField(max_length=settings.SMS_CODE_LENGTH, verbose_name='验证码')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     is_used = models.BooleanField(default=False, verbose_name='是否已使用')
+    updated_at = models.DateTimeField(default=timezone.now, verbose_name='更新时间')
 
     def __str__(self):
         return f"{self.phone} - {self.code}"
 
     def is_expired(self):
-        """判断验证码是否过期"""
-        expire_time = self.created_at + timezone.timedelta(minutes=settings.SMS_CODE_EXPIRE_MINUTES)
-        return timezone.now() > expire_time
+        """检查验证码是否过期"""
+        expire_minutes = getattr(settings, 'SMS_CODE_EXPIRE_MINUTES', 5)
+        return timezone.now() > self.created_at + timedelta(minutes=expire_minutes)
+
+    def save(self, *args, **kwargs):
+        """重写 save 方法，自动更新 updated_at"""
+        if not self.created_at:
+            self.created_at = timezone.now()
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = '短信验证码'

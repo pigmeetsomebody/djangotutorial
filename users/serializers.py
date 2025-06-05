@@ -5,6 +5,7 @@ import random
 from django.conf import settings
 import logging
 import traceback
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +117,28 @@ class LoginSerializer(serializers.Serializer):
             logger.error(f"创建用户或生成token时发生错误: {str(e)}")
             logger.error(f"错误详情: {traceback.format_exc()}")
             raise
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """用户资料序列化器"""
+    class Meta:
+        model = User
+        fields = ['nickname', 'avatar', 'bio', 'birthday']
+        extra_kwargs = {
+            'nickname': {'required': False, 'allow_blank': True},
+            'avatar': {'required': False, 'allow_blank': True},
+            'bio': {'required': False, 'allow_blank': True, 'max_length': 100},
+            'birthday': {'required': False, 'allow_null': True},
+        }
+
+    def validate_birthday(self, value):
+        """验证生日格式"""
+        if value and value > timezone.now().date():
+            raise serializers.ValidationError('生日不能是未来日期')
+        return value
+
+    def validate_bio(self, value):
+        """验证个人简介长度"""
+        if value and len(value) > 100:
+            raise serializers.ValidationError('个人简介不能超过100字')
+        return value

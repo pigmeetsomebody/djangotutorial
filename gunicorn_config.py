@@ -11,7 +11,7 @@ workers = multiprocessing.cpu_count() * 2 + 1
 worker_class = 'sync'
 
 # 最大客户端并发数量
-worker_connections = 1000
+worker_connections = 2000  # 增加并发连接数
 
 # 进程名称
 proc_name = 'djangotutorial'
@@ -26,7 +26,7 @@ accesslog = 'logs/gunicorn_access.log'
 errorlog = 'logs/gunicorn_error.log'
 
 # 日志级别
-loglevel = 'info'
+loglevel = 'debug'  # 改为debug级别以获取更多信息
 
 # 后台运行
 daemon = True
@@ -35,7 +35,10 @@ daemon = True
 reload = True
 
 # 超时时间
-timeout = 30
+timeout = 120  # 增加到120秒
+
+# 保持连接
+keepalive = 5
 
 # 最大请求数
 max_requests = 2000
@@ -44,10 +47,16 @@ max_requests = 2000
 max_requests_jitter = 400
 
 # 优雅的重启时间
-graceful_timeout = 30
+graceful_timeout = 120  # 增加优雅重启时间
 
 # 是否预加载应用
 preload_app = True
+
+# 缓冲区设置
+buffer_size = 32768  # 32KB
+
+# 工作进程超时设置
+worker_timeout = 120  # 工作进程超时时间
 
 def post_fork(server, worker):
     server.log.info("Worker spawned (pid: %s)", worker.pid)
