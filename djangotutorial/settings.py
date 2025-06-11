@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']  # 开发环境允许所有主机，生产环境要设置具体的域名
 
-PORT="8001"
+PORT="8000"
 # Application definition
 
 INSTALLED_APPS = [
@@ -220,3 +220,8 @@ LOGGING = {
         },
     },
 }
+
+OSS_BUCKET_NAME='home-memory-image-storage'
+OSS_REGION_ID='cn-hangzhou'
+OSS_ENDPOINT='https://oss-cn-hangzhou.aliyuncs.com'
+OSS_URL_PREFIX='https://home-memory-image-storage.oss-cn-hangzhou.aliyuncs.com'

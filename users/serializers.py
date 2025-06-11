@@ -6,6 +6,9 @@ from django.conf import settings
 import logging
 import traceback
 from django.utils import timezone
+import base64
+import io
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +114,8 @@ class LoginSerializer(serializers.Serializer):
             return {
                 'user': user,
                 'access_token': tokens['access'],
-                'refresh_token': tokens['refresh']
+                'refresh_token': tokens['refresh'],
+                'is_new_user': created  # 添加新用户标识字段
             }
         except Exception as e:
             logger.error(f"创建用户或生成token时发生错误: {str(e)}")
@@ -141,4 +145,154 @@ class UserProfileSerializer(serializers.ModelSerializer):
         """验证个人简介长度"""
         if value and len(value) > 100:
             raise serializers.ValidationError('个人简介不能超过100字')
+        return value
+
+
+class ImageUploadSerializer(serializers.Serializer):
+    """图片上传序列化器"""
+    image = serializers.ImageField(required=True)
+    folder = serializers.CharField(max_length=50, required=False, default='images')
+    
+    def validate_image(self, value):
+        """验证图片文件"""
+        # 检查文件大小（最大5MB）
+        max_size = 5 * 1024 * 1024  # 5MB
+        if value.size > max_size:
+            raise serializers.ValidationError('图片文件大小不能超过5MB')
+        
+        # 检查文件类型
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError('只支持 JPEG、PNG、GIF、WebP 格式的图片')
+        
+        return value
+    
+    def validate_folder(self, value):
+        """验证文件夹名称"""
+        # 只允许字母、数字、下划线和连字符
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
+            raise serializers.ValidationError('文件夹名称只能包含字母、数字、下划线和连字符')
+        return value
+
+
+class BatchImageUploadSerializer(serializers.Serializer):
+    """批量图片上传序列化器"""
+    images = serializers.ListField(
+        child=serializers.ImageField(),
+        min_length=1,
+        max_length=10,  # 最多上传10张图片
+        required=True
+    )
+    folder = serializers.CharField(max_length=50, required=False, default='images')
+    
+    def validate_images(self, value):
+        """验证图片列表"""
+        for image in value:
+            # 检查文件大小（最大5MB）
+            max_size = 5 * 1024 * 1024  # 5MB
+            if image.size > max_size:
+                raise serializers.ValidationError(f'图片 {image.name} 文件大小不能超过5MB')
+            
+            # 检查文件类型
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if image.content_type not in allowed_types:
+                raise serializers.ValidationError(f'图片 {image.name} 格式不支持，只支持 JPEG、PNG、GIF、WebP 格式')
+        
+        return value
+
+
+class BinaryImageUploadSerializer(serializers.Serializer):
+    """二进制图片上传序列化器"""
+    image_data = serializers.CharField(required=True, help_text="Base64编码的图片数据或二进制数据")
+    filename = serializers.CharField(max_length=255, required=True, help_text="文件名")
+    folder = serializers.CharField(max_length=50, required=False, default='images')
+    content_type = serializers.CharField(max_length=100, required=False, help_text="MIME类型，如image/jpeg")
+    
+    def validate_image_data(self, value):
+        """验证图片数据"""
+        try:
+            # 如果是base64编码的数据，先解码
+            if value.startswith('data:image'):
+                # 处理 data:image/jpeg;base64,... 格式
+                header, data = value.split(',', 1)
+                image_bytes = base64.b64decode(data)
+            elif len(value) % 4 == 0:
+                # 尝试作为base64解码
+                try:
+                    image_bytes = base64.b64decode(value)
+                except:
+                    # 如果解码失败，假设是原始二进制数据
+                    image_bytes = value.encode('latin1') if isinstance(value, str) else value
+            else:
+                # 假设是原始二进制数据
+                image_bytes = value.encode('latin1') if isinstance(value, str) else value
+            
+            # 验证是否为有效图片
+            try:
+                img = Image.open(io.BytesIO(image_bytes))
+                img.verify()
+            except Exception:
+                raise serializers.ValidationError('无效的图片数据')
+            
+            # 检查文件大小（最大5MB）
+            max_size = 5 * 1024 * 1024  # 5MB
+            if len(image_bytes) > max_size:
+                raise serializers.ValidationError('图片数据大小不能超过5MB')
+                
+            return image_bytes
+            
+        except Exception as e:
+            if isinstance(e, serializers.ValidationError):
+                raise e
+            raise serializers.ValidationError(f'图片数据格式错误: {str(e)}')
+    
+    def validate_filename(self, value):
+        """验证文件名"""
+        import re
+        # 检查文件扩展名
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        if not any(value.lower().endswith(ext) for ext in allowed_extensions):
+            raise serializers.ValidationError('文件名必须以 .jpg, .jpeg, .png, .gif, .webp 结尾')
+        
+        # 检查文件名是否包含非法字符
+        if not re.match(r'^[a-zA-Z0-9._-]+$', value):
+            raise serializers.ValidationError('文件名只能包含字母、数字、点、下划线和连字符')
+        
+        return value
+    
+    def validate_folder(self, value):
+        """验证文件夹名称"""
+        # 只允许字母、数字、下划线和连字符
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
+            raise serializers.ValidationError('文件夹名称只能包含字母、数字、下划线和连字符')
+        return value
+
+
+class RawBinaryImageUploadSerializer(serializers.Serializer):
+    """原始二进制图片上传序列化器（用于直接上传二进制数据）"""
+    filename = serializers.CharField(max_length=255, required=True, help_text="文件名")
+    folder = serializers.CharField(max_length=50, required=False, default='images')
+    content_type = serializers.CharField(max_length=100, required=False, help_text="MIME类型")
+    
+    def validate_filename(self, value):
+        """验证文件名"""
+        import re
+        # 检查文件扩展名
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        if not any(value.lower().endswith(ext) for ext in allowed_extensions):
+            raise serializers.ValidationError('文件名必须以 .jpg, .jpeg, .png, .gif, .webp 结尾')
+        
+        # 检查文件名是否包含非法字符
+        if not re.match(r'^[a-zA-Z0-9._-]+$', value):
+            raise serializers.ValidationError('文件名只能包含字母、数字、点、下划线和连字符')
+        
+        return value
+    
+    def validate_folder(self, value):
+        """验证文件夹名称"""
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
+            raise serializers.ValidationError('文件夹名称只能包含字母、数字、下划线和连字符')
         return value

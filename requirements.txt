@@ -45,4 +45,8 @@ redis==5.0.1  # Redis 客户端（如果需要使用 Redis 缓存）
 
 # 其他
 django-filter==23.5  # 过滤功能
-django-storages==1.14.2  # 存储后端（如果需要使用云存储） 
+django-storages==1.14.2  # 存储后端（如果需要使用云存储）
+
+# 阿里云服务
+alibabacloud-credentials==0.3.2  # 阿里云凭证管理
+alibabacloud-oss-v2=1.1.1 
